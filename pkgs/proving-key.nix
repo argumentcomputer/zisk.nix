@@ -12,6 +12,7 @@ stdenv.mkDerivation {
     url = "https://storage.googleapis.com/zisk-setup/zisk-provingkey-0.15.0.tar.gz";
     hash = "sha256-3Exmssygwh2ZC1y9KZF+jX+KU0w4MKxXC9ZI25ItnrM";
   };
+
   buildPhase = ''
     # Generate constant tree
     ${cargo-zisk}/bin/cargo-zisk check-setup -a --proving-key .

@@ -5,7 +5,7 @@
   fetchgit,
   pkgs,
   makeWrapper,
-  ziskToolchain,
+  zisk-toolchain,
 }: let
   proofmanSrc = fetchgit {
     url = "https://github.com/0xPolygonHermez/pil2-proofman";
@@ -26,8 +26,17 @@ in
     };
     cargoHash = "sha256-eczbphLn7MTLlnQvhGNRVUwQM3u8eyBRv0rKyPneFIc=";
 
-    # Build only the cargo-zisk binary from the cli workspace member
-    buildAndTestSubdir = "cli";
+    # Build binaries from multiple workspace members
+    cargoBuildFlags = [
+      "--package"
+      "cargo-zisk"
+      "--package"
+      "zisk-core"
+      "--package"
+      "zisk-distributed-coordinator"
+      "--package"
+      "zisk-distributed-worker"
+    ];
 
     postPatch = ''
       # Set up pil2-stark in the build directory
@@ -55,7 +64,6 @@ in
       clang
       gnumake
       cmake
-      gcc
       llvmPackages.openmp
       pkgsCross.riscv64-embedded.buildPackages.gcc
       makeWrapper
@@ -97,10 +105,18 @@ in
     # Disable tests as they may require network access or specific setup
     doCheck = false;
 
-    # Wrap cargo-zisk to use the zisk rustc and preserve library paths
+    # Wrap all binaries to preserve library paths and set RUSTC for cargo-zisk
     postInstall = ''
       wrapProgram $out/bin/cargo-zisk \
-        --set RUSTC "${ziskToolchain}/bin/rustc" \
+        --set RUSTC "${zisk-toolchain}/bin/rustc" \
         --prefix LD_LIBRARY_PATH : "${LD_LIBRARY_PATH}"
+
+      # Wrap distributed binaries (coordinator, worker) and riscv2zisk
+      for bin in riscv2zisk zisk-coordinator zisk-worker; do
+        if [ -f "$out/bin/$bin" ]; then
+          wrapProgram $out/bin/$bin \
+            --prefix LD_LIBRARY_PATH : "${LD_LIBRARY_PATH}"
+        fi
+      done
     '';
   }

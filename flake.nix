@@ -16,7 +16,6 @@
     # Rust-related inputs
     fenix = {
       url = "github:nix-community/fenix";
-      # Follow lean4-nix nixpkgs so we stay in sync
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -35,10 +34,6 @@
         "x86_64-linux"
       ];
 
-      flake = {
-        overlays.default = import ./overlay.nix;
-      };
-
       perSystem = {
         system,
         pkgs,
@@ -48,53 +43,59 @@
           file = ./rust-toolchain.toml;
           sha256 = "sha256-sqSWJDUxc+zaz1nBWMAJKTAGBuGWP25GCftIOlCEAtA=";
         };
-      in {
-        _module.args.pkgs = import nixpkgs {
+        pkgs = import nixpkgs {
           inherit system;
           config.allowUnfreePredicate = pkg:
             builtins.elem (nixpkgs.lib.getName pkg) ["mkl"];
-          overlays = [self.overlays.default];
         };
+
+        zisk-toolchain = pkgs.callPackage ./pkgs/zisk-toolchain.nix {};
+        cargo-zisk = pkgs.callPackage ./pkgs/cargo-zisk.nix {
+          inherit zisk-toolchain;
+        };
+        ziskemu = pkgs.callPackage ./pkgs/ziskemu.nix {};
+        proving-key = pkgs.callPackage ./pkgs/proving-key.nix {
+          inherit cargo-zisk;
+        };
+        zisk-home = pkgs.callPackage ./pkgs/zisk-home.nix {
+          inherit cargo-zisk zisk-toolchain ziskemu proving-key;
+        };
+      in {
         packages = {
-          inherit (pkgs) cargo-zisk ziskemu zisk-home zisk-toolchain proving-key;
-          #default = pkgs.cargo-zisk;
-          build-image = pkgs.writeShellScriptBin "zisk-build" ''
-            echo "Building Zisk image"
-            ${pkgs.podman}/bin/podman build \
-              -t localhost/cargo-zisk:latest \
-              "''${1:-$PWD}"
-          '';
-          run-zisk = pkgs.writeShellScriptBin "zisk-run" ''
-            ${pkgs.podman}/bin/podman run -it --rm \
-            localhost/cargo-zisk:latest
-          '';
+          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key;
+          build-image = pkgs.callPackage ./docker/build-image.nix {};
+          run-zisk = pkgs.callPackage ./docker/run-zisk.nix {};
+          zisk-shell = pkgs.callPackage ./docker/zisk-shell.nix {};
         };
         devShells.default = pkgs.mkShell {
-          ZISK_DIR = "${pkgs.zisk-home}/.zisk";
-          packages = with pkgs; [
-            # Zisk-specific toolchain and tools
-            cargo-zisk
-            ziskemu
-            rustToolchain
-            gmp
-            libsodium
-            grpc
-            jq
-            libpqxx
-            libuuid
-            openssl
-            postgresql
-            protobuf
-            secp256k1
-            nlohmann_json
-            nasm
-            libgit2
-            mpi
-            clang
-            zlib
-            llvmPackages.openmp
-            mkl
-          ];
+          ZISK_DIR = "${zisk-home}/.zisk";
+          packages =
+            [
+              # Zisk-specific tools
+              cargo-zisk
+              ziskemu
+            ]
+            ++ (with pkgs; [
+              rustToolchain
+              gmp
+              libsodium
+              grpc
+              jq
+              libpqxx
+              libuuid
+              openssl
+              postgresql
+              protobuf
+              secp256k1
+              nlohmann_json
+              nasm
+              libgit2
+              mpi
+              clang
+              zlib
+              llvmPackages.openmp
+              mkl
+            ]);
           RUSTFLAGS = builtins.map (a: "-L ${a}/lib") [pkgs.libgit2];
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
@@ -105,7 +106,7 @@
             gmp
             libsodium
             postgresql
-            openmpi
+            mpi
             llvmPackages.openmp
             # Add any other libraries the build scripts might need
           ]);
@@ -113,36 +114,27 @@
           shellHook = ''
             echo "Standard Rust: $(cargo --version)"
 
-            # Set up writable ZISK_DIR in $HOME
+            # Set up ZISK_DIR in $HOME
             export ZISK_DIR="$HOME/.zisk"
             mkdir -p "$ZISK_DIR"
 
-            # Copy static files from Nix store if not present (except large provingKey)
-            if [ ! -e "$ZISK_DIR/bin" ]; then
-              cp -r ${pkgs.zisk-home}/.zisk/bin "$ZISK_DIR/"
-              chmod -R u+w "$ZISK_DIR/bin"
-            fi
+            # Always sync binaries from Nix store to ensure updates are applied
+            echo "Syncing ZisK binaries from Nix store..."
+            ${pkgs.rsync}/bin/rsync -a --delete ${zisk-home}/.zisk/bin/ "$ZISK_DIR/bin/"
+
+            # Sync toolchains and zisk directory (read-only, executable where needed)
             if [ ! -e "$ZISK_DIR/toolchains" ]; then
-              cp -r ${pkgs.zisk-home}/.zisk/toolchains "$ZISK_DIR/"
-              chmod -R u+w "$ZISK_DIR/toolchains"
+              cp -r ${zisk-home}/.zisk/toolchains "$ZISK_DIR/"
             fi
             if [ ! -e "$ZISK_DIR/zisk" ]; then
-              cp -r ${pkgs.zisk-home}/.zisk/zisk "$ZISK_DIR/"
-              chmod -R u+w "$ZISK_DIR/zisk"
+              cp -r ${zisk-home}/.zisk/zisk "$ZISK_DIR/"
             fi
 
             # Symlink large provingKey instead of copying
-            [ ! -e "$ZISK_DIR/provingKey" ] && ln -s ${pkgs.zisk-home}/.zisk/provingKey "$ZISK_DIR/provingKey"
+            [ ! -e "$ZISK_DIR/provingKey" ] && ln -sf ${zisk-home}/.zisk/provingKey "$ZISK_DIR/provingKey"
 
-            # Create cache directory for runtime-generated files
+            # Create writable cache directory for runtime-generated files
             mkdir -p "$ZISK_DIR/cache"
-
-            # Create compatibility symlinks for libraries with version mismatches
-            COMPAT_LIB_DIR="/tmp/zisk-compat-libs-$$"
-            mkdir -p "$COMPAT_LIB_DIR"
-            ln -sf ${pkgs.libsodium}/lib/libsodium.so.26 "$COMPAT_LIB_DIR/libsodium.so.23"
-            ln -sf ${pkgs.llvmPackages.openmp}/lib/libomp.so "$COMPAT_LIB_DIR/libomp.so.5"
-            export LD_LIBRARY_PATH="$COMPAT_LIB_DIR:$LD_LIBRARY_PATH"
           '';
         };
       };

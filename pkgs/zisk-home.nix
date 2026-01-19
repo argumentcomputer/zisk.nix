@@ -3,7 +3,7 @@
   cargo-zisk,
   proving-key,
   ziskemu,
-  ziskToolchain,
+  zisk-toolchain,
   fetchgit,
   rustPlatform,
   nasm,
@@ -48,13 +48,16 @@ in
       # Link binaries to bin/
       mkdir -p "$out/.zisk/bin"
       ln -s ${cargo-zisk}/bin/cargo-zisk $out/.zisk/bin
+      ln -s ${cargo-zisk}/bin/riscv2zisk $out/.zisk/bin
+      ln -s ${cargo-zisk}/bin/zisk-coordinator $out/.zisk/bin
+      ln -s ${cargo-zisk}/bin/zisk-worker $out/.zisk/bin
       ln -s ${cargo-zisk}/lib/libzisk_witness.so $out/.zisk/bin
       ln -s ${ziskemu}/bin/ziskemu $out/.zisk/bin
       ln -s ${ziskcLib}/libziskclib.a $out/.zisk/bin
 
       # Link Rust toolchain
       mkdir -p $out/.zisk/toolchains
-      ln -s ${ziskToolchain} $out/.zisk/toolchains/${ziskToolchain.version}
+      ln -s ${zisk-toolchain} $out/.zisk/toolchains/${zisk-toolchain.version}
       ls $out/.zisk/toolchains -alh
 
       # Copy zisk libraries and build libziskc.a
