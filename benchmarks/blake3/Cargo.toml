@@ -1,0 +1,9 @@
+[package]
+name = "blake3-bench"
+version = "0.1.0"
+edition = "2021"
+default-run = "blake3-bench"
+
+[dependencies]
+ziskos = { git = "https://github.com/0xPolygonHermez/zisk.git" }
+blake3 = "1.8.3"
