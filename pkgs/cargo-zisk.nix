@@ -6,6 +6,10 @@
   pkgs,
   makeWrapper,
   zisk-toolchain,
+  # GPU support (requires Nvidia GPU and CUDA toolkit)
+  # Enable with: cargo-zisk.override { enableGpu = true; }
+  enableGpu ? false,
+  cudaPackages ? pkgs.cudaPackages,
 }: let
   proofmanSrc = fetchgit {
     url = "https://github.com/0xPolygonHermez/pil2-proofman";
@@ -36,6 +40,9 @@ in
       "zisk-distributed-coordinator"
       "--package"
       "zisk-distributed-worker"
+    ] ++ lib.optionals enableGpu [
+      "--features"
+      "gpu"
     ];
 
     postPatch = ''
@@ -67,6 +74,8 @@ in
       llvmPackages.openmp
       pkgsCross.riscv64-embedded.buildPackages.gcc
       makeWrapper
+    ] ++ lib.optionals enableGpu [
+      cudaPackages.cuda_nvcc
     ];
 
     buildInputs = with pkgs; [
@@ -84,9 +93,16 @@ in
       zlib
       mkl
       mpi
+    ] ++ lib.optionals enableGpu [
+      cudaPackages.cudatoolkit
+      cudaPackages.cuda_cudart
     ];
 
     LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
+    # CUDA environment variables (only when GPU support is enabled)
+    CUDA_PATH = lib.optionalString enableGpu "${cudaPackages.cudatoolkit}";
+    CUDA_HOME = lib.optionalString enableGpu "${cudaPackages.cudatoolkit}";
 
     LD_LIBRARY_PATH = lib.makeLibraryPath (with pkgs;
       [
@@ -100,6 +116,10 @@ in
       ]
       ++ lib.optionals stdenv.isLinux [
         mpi
+      ]
+      ++ lib.optionals enableGpu [
+        cudaPackages.cuda_cudart
+        cudaPackages.cudatoolkit
       ]);
 
     # Disable tests as they may require network access or specific setup

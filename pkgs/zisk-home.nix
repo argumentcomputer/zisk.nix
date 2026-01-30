@@ -81,8 +81,4 @@ in
       # Install proving key
       ln -s ${proving-key} $out/.zisk/provingKey
     '';
-
-    installPhase = ''
-      # Already handled in buildPhase
-    '';
   }

@@ -46,7 +46,17 @@
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfreePredicate = pkg:
-            builtins.elem (nixpkgs.lib.getName pkg) ["mkl"];
+            builtins.elem (nixpkgs.lib.getName pkg) [
+              "mkl"
+              # CUDA packages for GPU support
+              "cuda_cudart"
+              "cuda_nvcc"
+              "cuda_cccl"
+              "libcublas"
+              "libcufft"
+              "libnpp"
+              "cudatoolkit"
+            ];
         };
 
         zisk-toolchain = pkgs.callPackage ./pkgs/zisk-toolchain.nix {};
