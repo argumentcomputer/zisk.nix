@@ -9,7 +9,7 @@
 stdenv.mkDerivation {
   name = "proving-key";
   src = fetchurl {
-    url = "https://storage.googleapis.com/zisk-setup/zisk-provingkey-0.15.0.tar.gz";
+    url = "https://storage.googleapis.com/zisk-setup/zisk-provingkey-0.16.0.tar.gz";
     hash = "sha256-3Exmssygwh2ZC1y9KZF+jX+KU0w4MKxXC9ZI25ItnrM";
   };
 

@@ -2,27 +2,16 @@
   lib,
   stdenv,
   rustPlatform,
-  fetchgit,
   pkgs,
-}: let
-  proofmanSrc = fetchgit {
-    url = "https://github.com/0xPolygonHermez/pil2-proofman";
-    rev = "v0.15.0";
-    sha256 = "sha256-rmx/j9vFvEMMDA3S8C/pHRaCjBI1/H+D41/FWn93oFI=";
-    fetchSubmodules = true;
-  };
-in
+  ziskSrc,
+  proofmanSrc,
+}:
   rustPlatform.buildRustPackage rec {
     pname = "ziskemu";
-    version = "0.15.0";
+    version = "0.16.1";
 
-    src = fetchgit {
-      url = "https://github.com/0xPolygonHermez/zisk";
-      rev = "v0.15.0";
-      sha256 = "sha256-hzV4NedLnKV1JN497S7iiUq91NQltyx3M1W33SKWkeE=";
-      fetchSubmodules = true;
-    };
-    cargoHash = "sha256-eczbphLn7MTLlnQvhGNRVUwQM3u8eyBRv0rKyPneFIc=";
+    src = ziskSrc;
+    cargoHash = "sha256-DTD9NeTfhatR9gCIaZXoIpiXLyY0/hiauSSxsc9FZq8=";
 
     # Build only the ziskemu binary from the emulator workspace member
     buildAndTestSubdir = "emulator";
@@ -50,7 +39,6 @@ in
       cmake
       gcc
       llvmPackages.openmp
-      pkgsCross.riscv64-embedded.buildPackages.gcc
     ];
 
     buildInputs = with pkgs; [
