@@ -46,7 +46,8 @@
           ];
           RUSTFLAGS = builtins.map (a: "-L ${a}/lib") [pkgs.libgit2];
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-          NIX_CXXFLAGS_COMPILE = "-include cstdint";
+          NIX_CXXSTDLIB_COMPILE = "-include cstdint";
+          NIX_CFLAGS_COMPILE = "-D_GNU_SOURCE";
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
             zlib
             stdenv.cc.cc.lib
