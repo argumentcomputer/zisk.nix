@@ -1,22 +1,21 @@
 {
   description = "Template ZisK Nix flake";
 
-  # nixConfig = {
-  #   extra-substituters = [
-  #     "https://cache.garnix.io"
-  #   ];
-  #   extra-trusted-public-keys = [
-  #     "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
-  #   ];
-  # };
+  nixConfig = {
+    extra-substituters = [
+      "https://cache.garnix.io"
+    ];
+    extra-trusted-public-keys = [
+      "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
+    ];
+  };
 
   inputs = {
     nixpkgs.follows = "zisk/nixpkgs";
     flake-parts.follows = "zisk/flake-parts";
 
     zisk = {
-      # url = "github:argumentcomputer/zisk.nix";
-      url = "path:../..";
+      url = "github:argumentcomputer/zisk.nix";
     };
   };
 
