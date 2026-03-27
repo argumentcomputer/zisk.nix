@@ -1,14 +1,14 @@
 {
-  description = "A very basic flake";
+  description = "Zisk Nix flake";
 
-  # nixConfig = {
-  #   extra-substituters = [
-  #     "https://cache.garnix.io"
-  #   ];
-  #   extra-trusted-public-keys = [
-  #     "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
-  #   ];
-  # };
+  nixConfig = {
+    extra-substituters = [
+      "https://cache.garnix.io"
+    ];
+    extra-trusted-public-keys = [
+      "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
+    ];
+  };
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -27,6 +27,7 @@
   }:
     flake-parts.lib.mkFlake {inherit inputs;}
     {
+      flake.templates = import ./templates;
       systems = [
         "aarch64-darwin"
         "aarch64-linux"
@@ -41,7 +42,7 @@
       }: let
         rustToolchain = fenix.packages.${system}.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-sqSWJDUxc+zaz1nBWMAJKTAGBuGWP25GCftIOlCEAtA=";
+          sha256 = "sha256-zC8E38iDVJ1oPIzCqTk/Ujo9+9kx9dXq7wAwPMpkpg0=";
         };
         pkgs = import nixpkgs {
           inherit system;
@@ -49,94 +50,151 @@
             builtins.elem (nixpkgs.lib.getName pkg) ["mkl"];
         };
 
+        ziskSrc = pkgs.fetchgit {
+          url = "https://github.com/0xPolygonHermez/zisk";
+          rev = "v0.16.1";
+          sha256 = "sha256-4LG9R9CpsP4kLJ6Cvk8Afu7wGYjxTl1ZLIrgFPdTdAM=";
+          fetchSubmodules = true;
+        };
+        ziskSrcLite = pkgs.fetchgit {
+          url = "https://github.com/0xPolygonHermez/zisk";
+          rev = "v0.16.1";
+          sha256 = "sha256-4LG9R9CpsP4kLJ6Cvk8Afu7wGYjxTl1ZLIrgFPdTdAM=";
+        };
+        proofmanSrc = pkgs.fetchgit {
+          url = "https://github.com/0xPolygonHermez/pil2-proofman";
+          rev = "v0.16.1";
+          sha256 = "sha256-iVBcuUgi8OEPbxQRHHVcSYlhHBcxbHS9F1Rx9Rr73Kg=";
+          fetchSubmodules = true;
+        };
+
         zisk-toolchain = pkgs.callPackage ./pkgs/zisk-toolchain.nix {};
         cargo-zisk = pkgs.callPackage ./pkgs/cargo-zisk.nix {
-          inherit zisk-toolchain;
+          inherit ziskSrc proofmanSrc zisk-toolchain;
         };
-        ziskemu = pkgs.callPackage ./pkgs/ziskemu.nix {};
+        ziskemu = pkgs.callPackage ./pkgs/ziskemu.nix {
+          inherit ziskSrc proofmanSrc;
+        };
         proving-key = pkgs.callPackage ./pkgs/proving-key.nix {
           inherit cargo-zisk;
         };
         zisk-home = pkgs.callPackage ./pkgs/zisk-home.nix {
-          inherit cargo-zisk zisk-toolchain ziskemu proving-key;
+          inherit cargo-zisk zisk-toolchain ziskemu;
+          ziskSrc = ziskSrcLite;
+        };
+        rustup-shim = pkgs.callPackage ./pkgs/rustup-shim.nix {
+          inherit zisk-toolchain rustToolchain;
         };
       in {
         packages = {
-          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key;
+          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key rustup-shim;
           build-image = pkgs.callPackage ./docker/build-image.nix {};
           run-zisk = pkgs.callPackage ./docker/run-zisk.nix {};
           zisk-shell = pkgs.callPackage ./docker/zisk-shell.nix {};
         };
-        devShells.default = pkgs.mkShell {
-          ZISK_DIR = "${zisk-home}/.zisk";
-          packages =
-            [
-              # Zisk-specific tools
-              cargo-zisk
-              ziskemu
-            ]
-            ++ (with pkgs; [
-              rustToolchain
+        devShells.default = let
+          riscv-cross = pkgs.pkgsCross.riscv64-embedded.buildPackages.gcc;
+          # Symlink riscv64-unknown-elf-* to riscv64-none-elf-* (zisk expects the former)
+          riscv-toolchain = pkgs.runCommand "riscv64-unknown-elf-toolchain" {} ''
+            mkdir -p $out/bin
+            for bin in ${riscv-cross}/bin/riscv64-none-elf-*; do
+              ln -s "$bin" "$out/bin/riscv64-unknown-elf-''${bin##*riscv64-none-elf-}"
+            done
+          '';
+        in
+          pkgs.mkShell {
+            # ZISK_DIR = "${zisk-home}/.zisk";
+            packages =
+              [
+                # Zisk-specific tools
+                cargo-zisk
+                ziskemu
+                riscv-toolchain
+              ]
+              ++ [
+                rustup-shim
+              ]
+              ++ (with pkgs; [
+                gmp
+                libsodium
+                grpc
+                jq
+                libpqxx
+                libuuid
+                openssl
+                postgresql
+                protobuf
+                secp256k1
+                nlohmann_json
+                nasm
+                libgit2
+                mpi
+                clang
+                zlib
+                llvmPackages.openmp
+                mkl
+              ]);
+            RUSTFLAGS = builtins.map (a: "-L ${a}/lib") [pkgs.libgit2];
+            LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            # pil2-proofman C++ headers missing <cstdint> include (needed by newer compilers)
+            # NIX_CXXSTDLIB_COMPILE is only injected for C++ (g++), not C or assembly
+            NIX_CXXSTDLIB_COMPILE = "-include cstdint";
+            # _GNU_SOURCE needed for memfd_create in libffi-sys; safe for C, C++, and assembly
+            NIX_CFLAGS_COMPILE = "-D_GNU_SOURCE";
+
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
+              zlib
+              stdenv.cc.cc.lib # libstdc++, libgcc_s
+              openssl
               gmp
               libsodium
-              grpc
-              jq
-              libpqxx
-              libuuid
-              openssl
               postgresql
-              protobuf
-              secp256k1
-              nlohmann_json
-              nasm
-              libgit2
               mpi
-              clang
-              zlib
               llvmPackages.openmp
-              mkl
+              # Add any other libraries the build scripts might need
             ]);
-          RUSTFLAGS = builtins.map (a: "-L ${a}/lib") [pkgs.libgit2];
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
-          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
-            zlib
-            stdenv.cc.cc.lib # libstdc++, libgcc_s
-            openssl
-            gmp
-            libsodium
-            postgresql
-            mpi
-            llvmPackages.openmp
-            # Add any other libraries the build scripts might need
-          ]);
+            shellHook = ''
+              echo "Standard Rust: $(cargo --version)"
 
-          shellHook = ''
-            echo "Standard Rust: $(cargo --version)"
+              # Set up ZISK_DIR in $HOME
+              export ZISK_DIR="$HOME/.zisk"
+              mkdir -p "$ZISK_DIR"
 
-            # Set up ZISK_DIR in $HOME
-            export ZISK_DIR="$HOME/.zisk"
-            mkdir -p "$ZISK_DIR"
+              # Always sync binaries from Nix store to ensure updates are applied
+              echo "Syncing ZisK binaries from Nix store..."
+              ${pkgs.rsync}/bin/rsync -a --delete ${zisk-home}/.zisk/bin/ "$ZISK_DIR/bin/"
 
-            # Always sync binaries from Nix store to ensure updates are applied
-            echo "Syncing ZisK binaries from Nix store..."
-            ${pkgs.rsync}/bin/rsync -a --delete ${zisk-home}/.zisk/bin/ "$ZISK_DIR/bin/"
+              # Sync toolchains and zisk directory (read-only, executable where needed)
+              if [ ! -e "$ZISK_DIR/toolchains" ]; then
+                cp -r ${zisk-home}/.zisk/toolchains "$ZISK_DIR/"
+              fi
+              if [ ! -e "$ZISK_DIR/zisk" ]; then
+                cp -r ${zisk-home}/.zisk/zisk "$ZISK_DIR/"
+              fi
 
-            # Sync toolchains and zisk directory (read-only, executable where needed)
-            if [ ! -e "$ZISK_DIR/toolchains" ]; then
-              cp -r ${zisk-home}/.zisk/toolchains "$ZISK_DIR/"
-            fi
-            if [ ! -e "$ZISK_DIR/zisk" ]; then
-              cp -r ${zisk-home}/.zisk/zisk "$ZISK_DIR/"
-            fi
+              # Download proving key from GCS if not already present
+              if [ ! -d "$ZISK_DIR/provingKey" ]; then
+                echo "Downloading proving key (this may take a while)..."
+                rm -rf "$ZISK_DIR/provingKey"
+                ZISK_SETUP_FILE="zisk-provingkey-0.16.0.tar.gz"
+                if ${pkgs.curl}/bin/curl -fL -o "/tmp/$ZISK_SETUP_FILE" \
+                  "https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"; then
+                  ${pkgs.gnutar}/bin/tar xf "/tmp/$ZISK_SETUP_FILE" -C "$ZISK_DIR"
+                  rm -f "/tmp/$ZISK_SETUP_FILE"
+                  echo "Generating constant tree..."
+                  ${cargo-zisk}/bin/cargo-zisk check-setup -a
+                  echo "Proving key setup complete."
+                else
+                  echo "WARNING: Failed to download proving key. Proving will not work."
+                  echo "You can manually download from: https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"
+                fi
+              fi
 
-            # Symlink large provingKey instead of copying
-            [ ! -e "$ZISK_DIR/provingKey" ] && ln -sf ${zisk-home}/.zisk/provingKey "$ZISK_DIR/provingKey"
-
-            # Create writable cache directory for runtime-generated files
-            mkdir -p "$ZISK_DIR/cache"
-          '';
-        };
+              # Create writable cache directory for runtime-generated files
+              mkdir -p "$ZISK_DIR/cache"
+            '';
+          };
       };
     };
 }

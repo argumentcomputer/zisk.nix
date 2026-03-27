@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build zisk.nix
+    runs-on: warp-ubuntu-latest-x64-16x
+    steps:
+      - uses: actions/checkout@v6
+      - uses: cachix/install-nix-action@v31
+      - run: nix build .#zisk-toolchain -L --accept-flake-config
+      - run: nix build .#ziskemu -L --accept-flake-config
+      - run: nix build .#cargo-zisk -L --accept-flake-config
+      - run: nix build .#zisk-home -L --accept-flake-config
+
+  # test:
+  #   name: Test template
+  #   runs-on: warp-ubuntu-latest-x64-16x
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - uses: cachix/install-nix-action@v31
+  #     - name: Replace zisk.nix URL with local path
+  #       run: |
+  #         sed -i 's|url = "github:argumentcomputer/zisk.nix"|url = "path:../.."|' flake.nix
+  #         nix flake update zisk --accept-flake-config
+  #       working-directory: ${{ github.workspace }}/templates/sha_hasher
+  #     - name: Cache proving key and constant tree
+  #       id: cache-setup
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: ~/.zisk
+  #         key: zisk-setup-0.16.0
+  #     - name: Download proving key
+  #       if: steps.cache-setup.outputs.cache-hit != 'true'
+  #       run: |
+  #         ZISK_SETUP_FILE="zisk-provingkey-0.16.0.tar.gz"
+  #         curl -fL -o "/tmp/$ZISK_SETUP_FILE" \
+  #           "https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"
+  #         mkdir -p "$HOME/.zisk"
+  #         tar xf "/tmp/$ZISK_SETUP_FILE" -C "$HOME/.zisk"
+  #         rm -f "/tmp/$ZISK_SETUP_FILE"
+  #     - name: Generate constant tree
+  #       if: steps.cache-setup.outputs.cache-hit != 'true'
+  #       run: |
+  #         nix develop --accept-flake-config --command bash -c '
+  #           cargo-zisk check-setup -a --proving-key "$HOME/.zisk/provingKey"
+  #         '
+  #       working-directory: ${{ github.workspace }}/templates/sha_hasher
+  #     - name: Build and prove
+  #       run: |
+  #         nix develop --accept-flake-config --command bash -c '
+  #           cd host && cargo run --release --bin prove
+  #         '
+  #       working-directory: ${{ github.workspace }}/templates/sha_hasher
+  #       env:
+  #         RUST_LOG: info
+  #         ZISK_DIR: ${{ github.workspace }}/.zisk

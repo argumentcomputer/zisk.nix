@@ -2,31 +2,21 @@
   lib,
   stdenv,
   rustPlatform,
-  fetchgit,
   pkgs,
   makeWrapper,
+  ziskSrc,
+  proofmanSrc,
   zisk-toolchain,
 }: let
-  proofmanSrc = fetchgit {
-    url = "https://github.com/0xPolygonHermez/pil2-proofman";
-    rev = "v0.15.0";
-    sha256 = "sha256-rmx/j9vFvEMMDA3S8C/pHRaCjBI1/H+D41/FWn93oFI=";
-    fetchSubmodules = true;
-  };
+  common = import ./common.nix {inherit lib stdenv pkgs proofmanSrc;};
 in
   rustPlatform.buildRustPackage rec {
     pname = "cargo-zisk";
-    version = "0.15.0";
+    version = "0.16.1";
 
-    src = fetchgit {
-      url = "https://github.com/0xPolygonHermez/zisk";
-      rev = "v0.15.0";
-      sha256 = "sha256-hzV4NedLnKV1JN497S7iiUq91NQltyx3M1W33SKWkeE=";
-      fetchSubmodules = true;
-    };
-    cargoHash = "sha256-eczbphLn7MTLlnQvhGNRVUwQM3u8eyBRv0rKyPneFIc=";
+    src = ziskSrc;
+    cargoHash = "sha256-DTD9NeTfhatR9gCIaZXoIpiXLyY0/hiauSSxsc9FZq8=";
 
-    # Build binaries from multiple workspace members
     cargoBuildFlags = [
       "--package"
       "cargo-zisk"
@@ -38,84 +28,33 @@ in
       "zisk-distributed-worker"
     ];
 
-    postPatch = ''
-      # Set up pil2-stark in the build directory
-      cp -r --no-preserve=mode ${proofmanSrc}/pil2-stark /build/pil2-stark
-      mkdir -p /build/pil2-stark/.git
-      # Patch C++ files to add missing include
-      for f in \
-        src/rapidsnark/binfile_utils.hpp \
-        src/rapidsnark/thread_utils.hpp \
-        src/rapidsnark/binfile_writer.hpp
-      do
-        sed -i '1i #include <cstdint>' $NIX_BUILD_TOP/pil2-stark/$f
-      done
+    postPatch =
+      common.pil2StarkPostPatch
+      + ''
+        # Remove rustup-specific +zisk arguments (we'll use RUSTC env var instead)
+        sed -i 's/\["+zisk", "build"\]/["build"]/g' cli/src/commands/build.rs
+        sed -i 's/\["+zisk", "run"\]/["run"]/g' cli/src/commands/run.rs
+        sed -i 's/\["+zisk", "build"\]/["build"]/g' ziskbuild/src/command.rs
+      '';
 
-      # Remove rustup-specific +zisk arguments (we'll use RUSTC env var instead)
-      sed -i 's/\["+zisk", "build"\]/["build"]/g' cli/src/commands/build.rs
-      sed -i 's/\["+zisk", "run"\]/["run"]/g' cli/src/commands/run.rs
-      sed -i 's/\["+zisk", "build"\]/["build"]/g' ziskbuild/src/command.rs
-    '';
+    nativeBuildInputs =
+      common.nativeBuildInputs
+      ++ [
+        pkgs.pkgsCross.riscv64-embedded.buildPackages.gcc
+        makeWrapper
+      ];
 
-    nativeBuildInputs = with pkgs; [
-      pkg-config
-      protobuf
-      nasm
-      clang
-      gnumake
-      cmake
-      llvmPackages.openmp
-      pkgsCross.riscv64-embedded.buildPackages.gcc
-      makeWrapper
-    ];
+    inherit (common) buildInputs LIBCLANG_PATH LD_LIBRARY_PATH;
 
-    buildInputs = with pkgs; [
-      grpc
-      gmp
-      jq
-      libsodium
-      libpqxx
-      libuuid
-      openssl
-      postgresql
-      secp256k1
-      nlohmann_json
-      libgit2
-      zlib
-      mkl
-      mpi
-    ];
-
-    LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
-
-    LD_LIBRARY_PATH = lib.makeLibraryPath (with pkgs;
-      [
-        zlib
-        stdenv.cc.cc.lib
-        openssl
-        gmp
-        libsodium
-        postgresql
-        llvmPackages.openmp
-      ]
-      ++ lib.optionals stdenv.isLinux [
-        mpi
-      ]);
-
-    # Disable tests as they may require network access or specific setup
-    doCheck = false;
-
-    # Wrap all binaries to preserve library paths and set RUSTC for cargo-zisk
     postInstall = ''
       wrapProgram $out/bin/cargo-zisk \
         --set RUSTC "${zisk-toolchain}/bin/rustc" \
-        --prefix LD_LIBRARY_PATH : "${LD_LIBRARY_PATH}"
+        --prefix LD_LIBRARY_PATH : "${common.LD_LIBRARY_PATH}"
 
-      # Wrap distributed binaries (coordinator, worker) and riscv2zisk
       for bin in riscv2zisk zisk-coordinator zisk-worker; do
         if [ -f "$out/bin/$bin" ]; then
           wrapProgram $out/bin/$bin \
-            --prefix LD_LIBRARY_PATH : "${LD_LIBRARY_PATH}"
+            --prefix LD_LIBRARY_PATH : "${common.LD_LIBRARY_PATH}"
         fi
       done
     '';

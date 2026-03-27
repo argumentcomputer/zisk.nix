@@ -1,25 +1,19 @@
 {
   stdenv,
   cargo-zisk,
-  proving-key,
   ziskemu,
   zisk-toolchain,
-  fetchgit,
+  ziskSrc,
   rustPlatform,
   nasm,
   gmp,
 }: let
-  ziskSrc = fetchgit {
-    url = "https://github.com/0xPolygonHermez/zisk";
-    rev = "v0.15.0";
-    sha256 = "sha256-hzV4NedLnKV1JN497S7iiUq91NQltyx3M1W33SKWkeE=";
-  };
   # Build libziskclib from the zisk Rust workspace
   ziskcLib = rustPlatform.buildRustPackage {
     pname = "zisk-libs";
-    version = "0.15.0";
+    version = "0.16.1";
     src = ziskSrc;
-    cargoHash = "sha256-eczbphLn7MTLlnQvhGNRVUwQM3u8eyBRv0rKyPneFIc=";
+    cargoHash = "sha256-DTD9NeTfhatR9gCIaZXoIpiXLyY0/hiauSSxsc9FZq8=";
 
     # Only build the ziskclib library
     buildPhase = ''
@@ -51,7 +45,6 @@ in
       ln -s ${cargo-zisk}/bin/riscv2zisk $out/.zisk/bin
       ln -s ${cargo-zisk}/bin/zisk-coordinator $out/.zisk/bin
       ln -s ${cargo-zisk}/bin/zisk-worker $out/.zisk/bin
-      ln -s ${cargo-zisk}/lib/libzisk_witness.so $out/.zisk/bin
       ln -s ${ziskemu}/bin/ziskemu $out/.zisk/bin
       ln -s ${ziskcLib}/libziskclib.a $out/.zisk/bin
 
@@ -77,9 +70,6 @@ in
       cp /build/lib-c-build/lib/libziskc.a $out/.zisk/zisk/lib-c/c/lib/
 
       ls $out/.zisk/zisk -alh
-
-      # Install proving key
-      ln -s ${proving-key} $out/.zisk/provingKey
     '';
 
     installPhase = ''
