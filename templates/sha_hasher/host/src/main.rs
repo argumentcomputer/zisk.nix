@@ -7,7 +7,7 @@ fn main() -> Result<()> {
     println!("Starting ZisK Prover Client...");
 
     // Create an input stream and write '1000' to it.
-    let n = 1u32;
+    let n = 1000u32;
     let stdin = ZiskStdin::new();
     stdin.write(&n);
 
