@@ -5,9 +5,8 @@
   pkgs,
   ziskSrc,
   proofmanSrc,
-}:
-let
-  common = import ./common.nix { inherit lib stdenv pkgs proofmanSrc; };
+}: let
+  common = import ./common.nix {inherit lib stdenv pkgs proofmanSrc;};
 in
   rustPlatform.buildRustPackage rec {
     pname = "ziskemu";
@@ -20,11 +19,11 @@ in
 
     postPatch = common.pil2StarkPostPatch;
 
-    nativeBuildInputs = common.nativeBuildInputs ++ [
-      pkgs.gcc
-    ];
+    nativeBuildInputs =
+      common.nativeBuildInputs
+      ++ [
+        pkgs.gcc
+      ];
 
     inherit (common) buildInputs LIBCLANG_PATH LD_LIBRARY_PATH;
-
-    doCheck = false;
   }

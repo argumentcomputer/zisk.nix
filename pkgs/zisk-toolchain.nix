@@ -26,8 +26,6 @@ in
     unpackPhase = ''
       runHook preUnpack
       tar -xzf $src
-      ls -alh bin
-      ls -alh lib
       runHook postUnpack
     '';
     installPhase = ''

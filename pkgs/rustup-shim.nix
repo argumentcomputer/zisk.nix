@@ -3,8 +3,7 @@
   writeShellApplication,
   zisk-toolchain,
   rustToolchain,
-}:
-let
+}: let
   # Shim that dispatches to zisk-toolchain when RUSTUP_TOOLCHAIN=zisk
   rustc-shim = writeShellApplication {
     name = "rustc";
@@ -32,7 +31,7 @@ let
     '';
   };
 in
-symlinkJoin {
-  name = "rust-toolchain-with-zisk";
-  paths = [cargo-shim rustc-shim rustToolchain];
-}
+  symlinkJoin {
+    name = "cargo-zisk-shim";
+    paths = [cargo-shim rustc-shim rustToolchain];
+  }
