@@ -17,9 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: cachix/install-nix-action@v31
-      - run: nix build .#cargo-zisk -L --accept-flake-config
-      - run: nix build .#ziskemu -L --accept-flake-config
       - run: nix build .#zisk-toolchain -L --accept-flake-config
+      - run: nix build .#ziskemu -L --accept-flake-config
+      - run: nix build .#cargo-zisk -L --accept-flake-config
       - run: nix build .#zisk-home -L --accept-flake-config
 
   # test:
