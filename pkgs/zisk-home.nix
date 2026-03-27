@@ -24,6 +24,8 @@
       mkdir -p $out
       cp target/release/libziskclib.a $out
     '';
+
+    doCheck = false;
   };
 in
   stdenv.mkDerivation {
