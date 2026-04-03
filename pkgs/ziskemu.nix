@@ -1,29 +1,23 @@
 {
   lib,
   stdenv,
-  rustPlatform,
   pkgs,
+  craneLib,
   ziskSrc,
   proofmanSrc,
 }: let
-  common = import ./common.nix {inherit lib stdenv pkgs proofmanSrc;};
+  common = import ./common.nix {inherit lib stdenv pkgs craneLib ziskSrc proofmanSrc;};
 in
-  rustPlatform.buildRustPackage rec {
-    pname = "ziskemu";
-    version = "0.16.1";
+  craneLib.buildPackage (common.commonArgs
+    // {
+      inherit (common) cargoArtifacts;
+      pname = "ziskemu";
 
-    src = ziskSrc;
-    cargoHash = "sha256-DTD9NeTfhatR9gCIaZXoIpiXLyY0/hiauSSxsc9FZq8=";
+      cargoExtraArgs = "-p ziskemu";
 
-    buildAndTestSubdir = "emulator";
-
-    postPatch = common.pil2StarkPostPatch;
-
-    nativeBuildInputs =
-      common.nativeBuildInputs
-      ++ [
-        pkgs.gcc
-      ];
-
-    inherit (common) buildInputs LIBCLANG_PATH LD_LIBRARY_PATH;
-  }
+      nativeBuildInputs =
+        common.commonArgs.nativeBuildInputs
+        ++ [
+          pkgs.gcc
+        ];
+    })
