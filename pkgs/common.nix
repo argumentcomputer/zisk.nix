@@ -10,7 +10,7 @@
   version = "0.16.1";
 
   # Pre-built pil2-stark with libstarks.a (build.rs sees it exists and skips make)
-  pil2Stark = pkgs.callPackage ./libstarks.nix {inherit proofmanSrc;};
+  pil2Stark = pkgs.callPackage ./pil2-stark.nix {inherit proofmanSrc;};
 
   cargoVendorDir = craneLib.vendorCargoDeps {
     src = ziskSrc;

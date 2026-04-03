@@ -1,5 +1,5 @@
-# Pre-build libstarks.a from pil2-stark so the Rust build.rs skips C++ compilation.
-# This avoids needing a writable vendor directory during cargo build.
+# Pre-build pil2-stark with libstarks.a so proofman-starks-lib-c's build.rs
+# finds the library and skips C++ compilation.
 {
   stdenv,
   proofmanSrc,
