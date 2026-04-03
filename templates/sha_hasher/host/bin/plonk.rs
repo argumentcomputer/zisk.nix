@@ -34,11 +34,11 @@ fn main() -> Result<()> {
     println!("PLONK proof verification successful!");
 
     println!("Saving PLONK proof to disk...");
-    snark_proof.save_proof_with_publics("/tmp/sha_hasher_proof_snark_with_publics.bin")?;
-    println!("Proof saved to /tmp/sha_hasher_proof_snark_with_publics.bin");
+    snark_proof.save_proof_with_publics("tmp/sha_hasher_proof_snark_with_publics.bin")?;
+    println!("Proof saved to tmp/sha_hasher_proof_snark_with_publics.bin");
 
     println!("Loading and verifying saved PLONK proof...");
-    let proof = ZiskProofWithPublicValues::load("/tmp/sha_hasher_proof_snark_with_publics.bin")?;
+    let proof = ZiskProofWithPublicValues::load("tmp/sha_hasher_proof_snark_with_publics.bin")?;
     let vk = client.vk(&ELF)?;
     client.verify(proof.get_proof(), proof.get_publics(), &vk)?;
     println!("Saved PLONK proof verification successful!");
