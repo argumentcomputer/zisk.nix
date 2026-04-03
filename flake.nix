@@ -18,12 +18,14 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    crane.url = "github:ipetkov/crane";
   };
   outputs = inputs @ {
     self,
     nixpkgs,
     flake-parts,
     fenix,
+    crane,
   }:
     flake-parts.lib.mkFlake {inherit inputs;}
     {
@@ -68,18 +70,20 @@
           fetchSubmodules = true;
         };
 
+        craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+
         zisk-toolchain = pkgs.callPackage ./pkgs/zisk-toolchain.nix {};
         cargo-zisk = pkgs.callPackage ./pkgs/cargo-zisk.nix {
-          inherit ziskSrc proofmanSrc zisk-toolchain;
+          inherit craneLib ziskSrc proofmanSrc zisk-toolchain;
         };
         ziskemu = pkgs.callPackage ./pkgs/ziskemu.nix {
-          inherit ziskSrc proofmanSrc;
+          inherit craneLib ziskSrc proofmanSrc;
         };
         proving-key = pkgs.callPackage ./pkgs/proving-key.nix {
           inherit cargo-zisk;
         };
         zisk-home = pkgs.callPackage ./pkgs/zisk-home.nix {
-          inherit cargo-zisk zisk-toolchain ziskemu;
+          inherit cargo-zisk zisk-toolchain ziskemu craneLib proofmanSrc;
           ziskSrc = ziskSrcLite;
         };
         rustup-shim = pkgs.callPackage ./pkgs/rustup-shim.nix {

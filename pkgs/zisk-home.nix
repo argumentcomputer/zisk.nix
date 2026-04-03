@@ -1,32 +1,31 @@
 {
+  lib,
   stdenv,
+  pkgs,
   cargo-zisk,
   ziskemu,
   zisk-toolchain,
   ziskSrc,
-  rustPlatform,
+  craneLib,
+  proofmanSrc,
   nasm,
   gmp,
 }: let
-  # Build libziskclib from the zisk Rust workspace
-  ziskcLib = rustPlatform.buildRustPackage {
-    pname = "zisk-libs";
-    version = "0.16.1";
-    src = ziskSrc;
-    cargoHash = "sha256-DTD9NeTfhatR9gCIaZXoIpiXLyY0/hiauSSxsc9FZq8=";
+  common = import ./common.nix {inherit lib stdenv pkgs craneLib ziskSrc proofmanSrc;};
 
-    # Only build the ziskclib library
-    buildPhase = ''
-      cargo build --release --lib -p ziskclib
-    '';
+  # Build libziskclib from the zisk Rust workspace, reusing shared deps
+  ziskcLib = craneLib.buildPackage (common.commonArgs
+    // {
+      inherit (common) cargoArtifacts;
+      pname = "zisk-libs";
 
-    installPhase = ''
-      mkdir -p $out
-      cp target/release/libziskclib.a $out
-    '';
+      cargoExtraArgs = "--lib -p ziskclib";
 
-    doCheck = false;
-  };
+      installPhaseCommand = ''
+        mkdir -p $out
+        cp target/release/libziskclib.a $out/
+      '';
+    });
 in
   stdenv.mkDerivation {
     name = "zisk-home";

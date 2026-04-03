@@ -1,66 +1,86 @@
-# Shared build configuration for zisk packages that depend on pil2-proofman
+# Shared Crane build configuration for zisk packages
 {
   lib,
   stdenv,
   pkgs,
+  craneLib,
+  ziskSrc,
   proofmanSrc,
 }: rec {
-  # pil2-proofman's build.rs expects pil2-stark at CARGO_MANIFEST_DIR/../../pil2-stark.
-  # In Nix vendored builds the manifest lives under /build/<pname>-<version>-vendor/source-git-0/,
-  # so we copy pil2-stark into the vendor root and patch the missing <cstdint> include.
-  pil2StarkPostPatch = ''
-    pil2dir="/build/$pname-$version-vendor/pil2-stark"
-    cp -r --no-preserve=mode ${proofmanSrc}/pil2-stark "$pil2dir"
-    mkdir -p "$pil2dir/.git"
-    for f in \
-      src/rapidsnark/binfile_utils.hpp \
-      src/rapidsnark/thread_utils.hpp \
-      src/rapidsnark/binfile_writer.hpp
-    do
-      sed -i '1i #include <cstdint>' "$pil2dir/$f"
-    done
-  '';
+  version = "0.16.1";
 
-  nativeBuildInputs = with pkgs; [
-    pkg-config
-    protobuf
-    nasm
-    clang
-    gnumake
-    cmake
-    llvmPackages.openmp
-  ];
+  # Pre-built pil2-stark with libstarks.a (build.rs sees it exists and skips make)
+  pil2Stark = pkgs.callPackage ./libstarks.nix {inherit proofmanSrc;};
 
-  buildInputs = with pkgs; [
-    grpc
-    gmp
-    jq
-    libsodium
-    libpqxx
-    libuuid
-    openssl
-    postgresql
-    secp256k1
-    nlohmann_json
-    libgit2
-    zlib
-    mkl
-    mpi
-  ];
+  cargoVendorDir = craneLib.vendorCargoDeps {
+    src = ziskSrc;
+    # Patch proofman-starks-lib-c build.rs to accept PIL2_STARK_DIR env var.
+    # The upstream hardcodes ../../pil2-stark which breaks in vendored builds.
+    overrideVendorGitCheckout = _ps: drv:
+      drv.overrideAttrs (old: {
+        postInstall =
+          (old.postInstall or "")
+          + ''
+            for f in $out/proofman-starks-lib-c-*/build.rs; do
+              [ -f "$f" ] || continue
+              sed -i 's@let pil2_stark_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pil2-stark");@let pil2_stark_path = std::env::var("PIL2_STARK_DIR").map(std::path::PathBuf::from).unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pil2-stark"));@' "$f"
+            done
+          '';
+      });
+  };
 
-  LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+  commonArgs = {
+    pname = "zisk";
+    inherit version cargoVendorDir;
+    src = ziskSrc;
+    strictDeps = true;
+    doCheck = false;
+    PIL2_STARK_DIR = "${pil2Stark}";
 
-  LD_LIBRARY_PATH = lib.makeLibraryPath (with pkgs;
-    [
-      zlib
-      stdenv.cc.cc.lib
-      openssl
-      gmp
-      libsodium
-      postgresql
+    nativeBuildInputs = with pkgs; [
+      pkg-config
+      protobuf
+      nasm
+      clang
+      gnumake
+      cmake
       llvmPackages.openmp
-    ]
-    ++ lib.optionals stdenv.isLinux [
+    ];
+
+    buildInputs = with pkgs; [
+      grpc
+      gmp
+      jq
+      libsodium
+      libpqxx
+      libuuid
+      openssl
+      postgresql
+      secp256k1
+      nlohmann_json
+      libgit2
+      zlib
+      mkl
       mpi
-    ]);
+    ];
+
+    LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
+    LD_LIBRARY_PATH = lib.makeLibraryPath (with pkgs;
+      [
+        zlib
+        stdenv.cc.cc.lib
+        openssl
+        gmp
+        libsodium
+        libgit2
+        postgresql
+        llvmPackages.openmp
+      ]
+      ++ lib.optionals stdenv.isLinux [
+        mpi
+      ]);
+  };
+
+  cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 }
