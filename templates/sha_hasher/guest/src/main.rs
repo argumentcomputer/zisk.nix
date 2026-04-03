@@ -5,6 +5,8 @@
 ziskos::entrypoint!(main);
 
 use serde::{Deserialize, Serialize};
+
+#[cfg(not(feature = "precompile"))]
 use sha2::{Digest, Sha256};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,10 +24,17 @@ fn main() {
 
     // Compute SHA-256 hashing 'n' times
     for _ in 0..n {
-        let mut hasher = Sha256::new();
-        hasher.update(hash);
-        let digest = &hasher.finalize();
-        hash = Into::<[u8; 32]>::into(*digest);
+        #[cfg(feature = "precompile")]
+        {
+            hash = ziskos::zisklib::sha256(&hash);
+        }
+        #[cfg(not(feature = "precompile"))]
+        {
+            let mut hasher = Sha256::new();
+            hasher.update(hash);
+            let digest = &hasher.finalize();
+            hash = Into::<[u8; 32]>::into(*digest);
+        }
     }
 
     let output = Output { hash, iterations: n, magic_number: 0xDEADBEEF };
