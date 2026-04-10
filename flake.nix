@@ -82,6 +82,24 @@
         proving-key = pkgs.callPackage ./pkgs/proving-key.nix {
           inherit cargo-zisk;
         };
+        install-proving-key = pkgs.writeShellApplication {
+          name = "install-proving-key";
+          runtimeInputs = [pkgs.curl pkgs.gnutar cargo-zisk];
+          text = ''
+            ZISK_DIR="''${ZISK_DIR:-$HOME/.zisk}"
+            mkdir -p "$ZISK_DIR"
+            ZISK_SETUP_FILE="zisk-provingkey-0.16.0.tar.gz"
+            echo "Downloading proving key to $ZISK_DIR (this may take a while)..."
+            rm -rf "$ZISK_DIR/provingKey"
+            curl -fL -o "/tmp/$ZISK_SETUP_FILE" \
+              "https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"
+            tar xf "/tmp/$ZISK_SETUP_FILE" -C "$ZISK_DIR"
+            rm -f "/tmp/$ZISK_SETUP_FILE"
+            echo "Generating constant tree..."
+            cargo-zisk check-setup -a
+            echo "Proving key setup complete."
+          '';
+        };
         zisk-home = pkgs.callPackage ./pkgs/zisk-home.nix {
           inherit cargo-zisk zisk-toolchain ziskemu craneLib proofmanSrc;
           ziskSrc = ziskSrcLite;
@@ -91,7 +109,7 @@
         };
       in {
         packages = {
-          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key rustup-shim;
+          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key install-proving-key rustup-shim;
           build-image = pkgs.callPackage ./docker/build-image.nix {};
           run-zisk = pkgs.callPackage ./docker/run-zisk.nix {};
           zisk-shell = pkgs.callPackage ./docker/zisk-shell.nix {};
@@ -177,22 +195,9 @@
                 cp -r ${zisk-home}/.zisk/zisk "$ZISK_DIR/"
               fi
 
-              # Download proving key from GCS if not already present
               if [ ! -d "$ZISK_DIR/provingKey" ]; then
-                echo "Downloading proving key (this may take a while)..."
-                rm -rf "$ZISK_DIR/provingKey"
-                ZISK_SETUP_FILE="zisk-provingkey-0.16.0.tar.gz"
-                if ${pkgs.curl}/bin/curl -fL -o "/tmp/$ZISK_SETUP_FILE" \
-                  "https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"; then
-                  ${pkgs.gnutar}/bin/tar xf "/tmp/$ZISK_SETUP_FILE" -C "$ZISK_DIR"
-                  rm -f "/tmp/$ZISK_SETUP_FILE"
-                  echo "Generating constant tree..."
-                  ${cargo-zisk}/bin/cargo-zisk check-setup -a
-                  echo "Proving key setup complete."
-                else
-                  echo "WARNING: Failed to download proving key. Proving will not work."
-                  echo "You can manually download from: https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"
-                fi
+                echo "Proving key not found at $ZISK_DIR/provingKey."
+                echo "Run 'nix run .#install-proving-key' to download it (required for proving)."
               fi
 
               # Create writable cache directory for runtime-generated files
