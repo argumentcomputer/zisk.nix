@@ -185,7 +185,9 @@
 
               # Always sync binaries from Nix store to ensure updates are applied
               echo "Syncing ZisK binaries from Nix store..."
-              ${pkgs.rsync}/bin/rsync -a --delete ${zisk-home}/.zisk/bin/ "$ZISK_DIR/bin/"
+              # -rlptD instead of -a: skip owner/group preservation since we're syncing
+              # nix-store files into $HOME, where the nixbld group isn't valid.
+              ${pkgs.rsync}/bin/rsync -rlptD --delete ${zisk-home}/.zisk/bin/ "$ZISK_DIR/bin/"
 
               # Sync toolchains and zisk directory (read-only, executable where needed)
               if [ ! -e "$ZISK_DIR/toolchains" ]; then
