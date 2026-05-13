@@ -1,5 +1,7 @@
-# NOTE: Generates a 33GB proving key, modify this file at your own peril. Rebuilds take 5-10 minutes
+# NOTE: Downloads the upstream proving key (~33GB extracted) and generates the
+# constant tree on top via `cargo-zisk check-setup -a`. Rebuilds take 5-10 min.
 {
+  lib,
   stdenv,
   cargo-zisk,
   fetchurl,
@@ -9,8 +11,8 @@
 stdenv.mkDerivation {
   name = "proving-key";
   src = fetchurl {
-    url = "https://storage.googleapis.com/zisk-setup/zisk-provingkey-0.16.0.tar.gz";
-    hash = "sha256-3Exmssygwh2ZC1y9KZF+jX+KU0w4MKxXC9ZI25ItnrM";
+    url = "https://storage.googleapis.com/zisk-setup/zisk-provingkey-0.17.0.tar.gz";
+    hash = lib.fakeHash;
   };
 
   buildPhase = ''

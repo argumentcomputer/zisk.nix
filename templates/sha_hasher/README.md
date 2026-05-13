@@ -1,16 +1,26 @@
 # sha_hasher
 
-Computes SHA-256 iteratively inside the ZisK zkVM and generates a proof of correct execution.
+A ZisK 0.17 example: iteratively computes SHA-256 inside the zkVM and generates
+a proof of correct execution. Includes an aggregation guest that verifies N
+leaf proofs in-circuit to produce a single top-level proof.
 
-See https://0xpolygonhermez.github.io/zisk/getting_started/quickstart.html for full instructions.
+See https://0xpolygonhermez.github.io/zisk/getting_started/quickstart.html for
+upstream docs.
 
 ## Prerequisites
 
-Enter the dev shell:
+Enter the dev shell (provides `cargo-zisk`, `ziskemu`, the Zisk Rust toolchain,
+and all native deps):
 
 ```
 direnv allow
 # or: nix develop
+```
+
+For proving you also need the proving key:
+
+```
+nix run .#install-proving-key
 ```
 
 ## Build
@@ -19,62 +29,63 @@ direnv allow
 cargo build --release
 ```
 
-To use the ZisK SHA-256 precompile instead of the Rust `sha2` crate:
-
-```
-cargo build --release --features precompile
-```
-
 ## Run
 
-**Execute** (run the guest program without generating a proof):
+The host crate exposes several bins, each demonstrating a different proving
+mode. Each bin writes its own fixed input to stdin — edit the corresponding
+file under `host/bin/` to change it.
+
+**Run via emulator** (no proof):
+
+```
+cargo run --release --bin run
+```
+
+**Execute under the SDK** (no proof generation, but full setup):
 
 ```
 cargo run --release --bin execute
 ```
 
-**Emulator** (run via the ZisK emulator with debug output):
-
-```
-cargo run --release --bin ziskemu
-```
-
-**Verify constraints** (check constraint satisfaction without proof generation):
-
-```
-cargo run --release --bin verify-constraints
-```
-
-**Generate and verify a proof**:
+**Generate and verify a basic-stage proof**:
 
 ```
 cargo run --release --bin prove
 ```
 
-**Generate a compressed proof**:
+**Wrap into a minimal recursive proof**:
 
 ```
-cargo run --release --bin compressed
+cargo run --release --bin minimal
 ```
 
-**Generate a PLONK SNARK proof** (for on-chain verification):
+**Wrap into a PLONK SNARK proof** (for on-chain verification):
 
 ```
 cargo run --release --bin plonk
+```
+
+**Aggregate N leaf proofs** (generates N independent leaf proofs, then proves
+their joint verification inside the aggregation guest):
+
+```
+cargo run --release --bin aggregate
 ```
 
 ## Structure
 
 ```
 sha_hasher/
-├── guest/src/main.rs    # zkVM program: reads n, computes SHA-256 n times, commits result
+├── common/                       # Shared Output type (ABI-encoded)
+├── guest/                        # Leaf zkVM program (SHA-256 iteration)
+├── aggregation_guest/            # Aggregation zkVM program (verify_zisk_proof)
 └── host/
-    ├── src/main.rs      # Default binary: setup, execute, prove, verify
+    ├── src/main.rs               # Default binary: full setup + prove + verify
     └── bin/
-        ├── execute.rs           # Execute only (no proof)
-        ├── ziskemu.rs           # Run via emulator
-        ├── verify-constraints.rs # Constraint verification
-        ├── prove.rs             # Full proof generation + save/load
-        ├── compressed.rs        # Compressed proof
-        └── plonk.rs             # PLONK SNARK proof
+        ├── run.rs                # Standalone emulator
+        ├── execute.rs            # Execute only (no proof)
+        ├── prove.rs              # Basic-stage proof
+        ├── minimal.rs            # VadcopFinalMinimal wrapped proof
+        ├── plonk.rs              # PLONK SNARK proof
+        └── aggregate.rs          # Aggregate N leaf proofs in-circuit
 ```

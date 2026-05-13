@@ -15,7 +15,7 @@ in
       inherit (common) cargoArtifacts;
       pname = "cargo-zisk";
 
-      cargoExtraArgs = "-p cargo-zisk -p zisk-core -p zisk-distributed-coordinator -p zisk-distributed-worker";
+      cargoExtraArgs = "-p cargo-zisk -p zisk-core -p zisk-coordinator-server -p zisk-worker";
 
       postPatch = ''
         # Remove rustup-specific +zisk arguments (we use RUSTC env var instead)
