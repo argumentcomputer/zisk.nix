@@ -79,9 +79,6 @@
         ziskemu = pkgs.callPackage ./pkgs/ziskemu.nix {
           inherit craneLib ziskSrc proofmanSrc;
         };
-        proving-key = pkgs.callPackage ./pkgs/proving-key.nix {
-          inherit cargo-zisk;
-        };
         install-proving-key = pkgs.writeShellApplication {
           name = "install-proving-key";
           runtimeInputs = [pkgs.curl pkgs.gnutar cargo-zisk];
@@ -109,7 +106,7 @@
         };
       in {
         packages = {
-          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key install-proving-key rustup-shim;
+          inherit cargo-zisk ziskemu zisk-home zisk-toolchain install-proving-key rustup-shim;
           build-image = pkgs.callPackage ./docker/build-image.nix {};
           run-zisk = pkgs.callPackage ./docker/run-zisk.nix {};
           zisk-shell = pkgs.callPackage ./docker/zisk-shell.nix {};
