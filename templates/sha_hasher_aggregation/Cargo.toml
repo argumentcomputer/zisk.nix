@@ -1,7 +1,0 @@
-[workspace]
-members = ["host", "guest", "guest_agg"]
-resolver = "2"
-
-[workspace.dependencies]
-zisk-sdk = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.16.1" }
-ziskos = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.16.1" }

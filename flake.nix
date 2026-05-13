@@ -54,19 +54,19 @@
 
         ziskSrc = pkgs.fetchgit {
           url = "https://github.com/0xPolygonHermez/zisk";
-          rev = "v0.16.1";
-          sha256 = "sha256-4LG9R9CpsP4kLJ6Cvk8Afu7wGYjxTl1ZLIrgFPdTdAM=";
+          rev = "v0.17.0";
+          sha256 = "sha256-ZVlMF3EUzk1kajzXwnW7+Tj1Ms9p6bFGGZPKx7v1nZo=";
           fetchSubmodules = true;
         };
         ziskSrcLite = pkgs.fetchgit {
           url = "https://github.com/0xPolygonHermez/zisk";
-          rev = "v0.16.1";
-          sha256 = "sha256-4LG9R9CpsP4kLJ6Cvk8Afu7wGYjxTl1ZLIrgFPdTdAM=";
+          rev = "v0.17.0";
+          sha256 = "sha256-ZVlMF3EUzk1kajzXwnW7+Tj1Ms9p6bFGGZPKx7v1nZo=";
         };
         proofmanSrc = pkgs.fetchgit {
           url = "https://github.com/0xPolygonHermez/pil2-proofman";
-          rev = "v0.16.1";
-          sha256 = "sha256-iVBcuUgi8OEPbxQRHHVcSYlhHBcxbHS9F1Rx9Rr73Kg=";
+          rev = "v0.17.0";
+          sha256 = "sha256-JmFlGh+q82v/p8Eg0YO6GvwQyyS/dQW0udPGizo2H+g=";
           fetchSubmodules = true;
         };
 
@@ -79,16 +79,13 @@
         ziskemu = pkgs.callPackage ./pkgs/ziskemu.nix {
           inherit craneLib ziskSrc proofmanSrc;
         };
-        proving-key = pkgs.callPackage ./pkgs/proving-key.nix {
-          inherit cargo-zisk;
-        };
         install-proving-key = pkgs.writeShellApplication {
           name = "install-proving-key";
           runtimeInputs = [pkgs.curl pkgs.gnutar cargo-zisk];
           text = ''
             ZISK_DIR="''${ZISK_DIR:-$HOME/.zisk}"
             mkdir -p "$ZISK_DIR"
-            ZISK_SETUP_FILE="zisk-provingkey-0.16.0.tar.gz"
+            ZISK_SETUP_FILE="zisk-provingkey-0.17.0.tar.gz"
             echo "Downloading proving key to $ZISK_DIR (this may take a while)..."
             rm -rf "$ZISK_DIR/provingKey"
             curl -fL -o "/tmp/$ZISK_SETUP_FILE" \
@@ -109,7 +106,7 @@
         };
       in {
         packages = {
-          inherit cargo-zisk ziskemu zisk-home zisk-toolchain proving-key install-proving-key rustup-shim;
+          inherit cargo-zisk ziskemu zisk-home zisk-toolchain install-proving-key rustup-shim;
           build-image = pkgs.callPackage ./docker/build-image.nix {};
           run-zisk = pkgs.callPackage ./docker/run-zisk.nix {};
           zisk-shell = pkgs.callPackage ./docker/zisk-shell.nix {};
