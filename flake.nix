@@ -122,6 +122,7 @@
           '';
         in
           pkgs.mkShell {
+            name = "zisk";
             # ZISK_DIR = "${zisk-home}/.zisk";
             packages =
               [
@@ -186,12 +187,19 @@
               # nix-store files into $HOME, where the nixbld group isn't valid.
               ${pkgs.rsync}/bin/rsync -rlptD --delete ${zisk-home}/.zisk/bin/ "$ZISK_DIR/bin/"
 
-              # Sync toolchains and zisk directory (read-only, executable where needed)
+              # Sync toolchains and zisk directory. `cp -r` from a nix-store
+              # source preserves r-x perms, which leaves $HOME copies
+              # impossible to update or `rm -rf`. `chmod -R u+w` after each
+              # copy so future refreshes can wipe and replace these trees.
+              # `cargo-zisk prove` also writes `build/` under
+              # `zisk/emulator-asm/` per ELF, which requires the same.
               if [ ! -e "$ZISK_DIR/toolchains" ]; then
                 cp -r ${zisk-home}/.zisk/toolchains "$ZISK_DIR/"
+                chmod -R u+w "$ZISK_DIR/toolchains"
               fi
               if [ ! -e "$ZISK_DIR/zisk" ]; then
                 cp -r ${zisk-home}/.zisk/zisk "$ZISK_DIR/"
+                chmod -R u+w "$ZISK_DIR/zisk"
               fi
 
               if [ ! -d "$ZISK_DIR/provingKey" ]; then
