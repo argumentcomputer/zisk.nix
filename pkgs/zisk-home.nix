@@ -56,6 +56,10 @@ in
       mkdir -p $out/.zisk/zisk/emulator-asm
       cp -R ${ziskSrc}/emulator-asm/src/ $out/.zisk/zisk/emulator-asm/
       cp -R ${ziskSrc}/emulator-asm/Makefile $out/.zisk/zisk/emulator-asm/
+      # `cargo-zisk prove` runs `make` in this dir per ELF, which writes to
+      # `build/`. Nix-store source preserves r-x perms across `cp -R`; without
+      # this chmod the downstream `mkdir build` fails with Permission denied.
+      chmod -R u+w $out/.zisk/zisk/emulator-asm
 
       # Build libziskc.a in a temporary writable directory
       mkdir -p /build/lib-c-build
