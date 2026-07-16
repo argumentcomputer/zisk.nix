@@ -1,6 +1,0 @@
-builds:
-  exclude:
-    - "packages.*.install-proving-key"
-    - "packages.*.build-image"
-    - "packages.*.run-zisk"
-    - "packages.*.zisk-shell"
