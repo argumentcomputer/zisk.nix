@@ -5,7 +5,10 @@
     set -e
 
     CONTAINER_NAME="''${ZISK_CONTAINER_NAME:-zisk-dev}"
-    IMAGE_NAME="''${ZISK_IMAGE:-localhost/cargo-zisk:latest}"
+    # CI publishes the tested image per branch; podman pulls it on first use,
+    # so no local zisk-build is needed. Set ZISK_IMAGE=localhost/cargo-zisk:latest
+    # to use a locally built image instead.
+    IMAGE_NAME="''${ZISK_IMAGE:-ghcr.io/argumentcomputer/cargo-zisk:blake3-precompile}"
     SHELL="''${ZISK_SHELL:-/bin/bash}"
 
     DEVICE=
@@ -30,7 +33,8 @@
 
     Environment:
       ZISK_CONTAINER_NAME (default: zisk-dev)
-      ZISK_IMAGE          (default: localhost/cargo-zisk:latest)
+      ZISK_IMAGE          (default: ghcr.io/argumentcomputer/cargo-zisk:blake3-precompile;
+                           set to localhost/cargo-zisk:latest for a zisk-build image)
       ZISK_SHELL          (default: /bin/bash)
     EOF
     }
