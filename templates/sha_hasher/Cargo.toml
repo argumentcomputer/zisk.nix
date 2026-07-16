@@ -6,5 +6,6 @@ resolver = "2"
 byteorder = "1.5.0"
 sha2 = "0.10.8"
 
-zisk-sdk = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.17.0" }
-ziskos = { git = "https://github.com/0xPolygonHermez/zisk.git", tag = "v0.17.0" }
+# argumentcomputer/zisk fork: upstream v1.0.0-alpha + Blake3 compression precompile
+zisk-sdk = { git = "https://github.com/argumentcomputer/zisk.git", branch = "blake3-precompile" }
+ziskos = { git = "https://github.com/argumentcomputer/zisk.git", branch = "blake3-precompile" }
