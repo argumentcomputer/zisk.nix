@@ -7,7 +7,7 @@
   ziskSrc,
   proofmanSrc,
 }: rec {
-  version = "0.17.0";
+  version = "1.0.0-alpha";
 
   # Pre-built pil2-stark with libstarks.a (build.rs sees it exists and skips make)
   pil2Stark = pkgs.callPackage ./pil2-stark.nix {inherit proofmanSrc;};
@@ -27,6 +27,21 @@
               [ -f "$f" ] || continue
               sed -i 's@let pil2_stark_path_raw = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pil2-stark");@let pil2_stark_path_raw = std::env::var("PIL2_STARK_DIR").map(std::path::PathBuf::from).unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pil2-stark"));@' "$f"
               sed -i 's@run_command("make"@run_command("true"@g' "$f"
+              # The build lock lives next to the pil2-stark sources, which is a
+              # read-only store path here; relocate it to OUT_DIR.
+              sed -i 's@let lock_path = pil2_stark_path.join(".build_lock");@let lock_path = Path::new(\&env::var("OUT_DIR").unwrap()).join(".build_lock");@' "$f"
+            done
+
+            # pil2-stark-setup embeds the proofman repo-root package.json via
+            # include_str!("../../package.json"), but vendoring extracts each
+            # crate dir in isolation. postInstall runs from the full repo
+            # checkout, so copy the file into the crate and point the include
+            # at it.
+            for d in $out/pil2-stark-setup-*; do
+              [ -d "$d" ] && [ -f package.json ] || continue
+              cp package.json "$d/"
+              sed -i 's@"/../../package.json"@"/package.json"@' \
+                "$d/src/proving_key/node_deps.rs"
             done
           '';
       });
@@ -48,6 +63,9 @@
       gnumake
       cmake
       llvmPackages.openmp
+      # gmp-mpfr-sys builds GMP from source, which needs m4 (and probes file)
+      m4
+      file
     ];
 
     buildInputs = with pkgs; [

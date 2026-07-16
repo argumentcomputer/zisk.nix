@@ -14,7 +14,7 @@
 }:
 stdenv.mkDerivation {
   pname = "pil2-stark";
-  version = "0.17.0";
+  version = "1.0.0-alpha";
 
   src = "${proofmanSrc}/pil2-stark";
 

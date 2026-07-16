@@ -36,41 +36,42 @@ in
     buildInputs = [gmp];
 
     buildPhase = ''
-      # Create the expected ~/.zisk directory structure
+      # Create the expected ~/.zisk directory structure (mirrors the layout of
+      # the upstream release tarball extracted by ziskup)
+
+      # Build libziskc.a in a temporary writable directory; the emulator-asm
+      # Makefile links it from ../../bin (-lziskc) alongside libziskclib.a
+      mkdir -p /build/lib-c-build
+      cp -R ${ziskSrc}/lib-c/c/* /build/lib-c-build/
+      (cd /build/lib-c-build && make lib/libziskc.a)
 
       # Link binaries to bin/
       mkdir -p "$out/.zisk/bin"
       ln -s ${cargo-zisk}/bin/cargo-zisk $out/.zisk/bin
+      ln -s ${cargo-zisk}/bin/cargo-zisk-dev $out/.zisk/bin
       ln -s ${cargo-zisk}/bin/riscv2zisk $out/.zisk/bin
       ln -s ${cargo-zisk}/bin/zisk-coordinator $out/.zisk/bin
       ln -s ${cargo-zisk}/bin/zisk-worker $out/.zisk/bin
       ln -s ${ziskemu}/bin/ziskemu $out/.zisk/bin
       ln -s ${ziskcLib}/libziskclib.a $out/.zisk/bin
+      cp /build/lib-c-build/lib/libziskc.a $out/.zisk/bin/
 
       # Link Rust toolchain
       mkdir -p $out/.zisk/toolchains
       ln -s ${zisk-toolchain} $out/.zisk/toolchains/${zisk-toolchain.version}
       ls $out/.zisk/toolchains -alh
 
-      # Copy zisk libraries and build libziskc.a
+      # Copy emulator-asm sources; emu.c includes headers from
+      # ../../lib-c/c/src, so ship those too
       mkdir -p $out/.zisk/zisk/emulator-asm
       cp -R ${ziskSrc}/emulator-asm/src/ $out/.zisk/zisk/emulator-asm/
       cp -R ${ziskSrc}/emulator-asm/Makefile $out/.zisk/zisk/emulator-asm/
+      mkdir -p $out/.zisk/zisk/lib-c/c
+      cp -R ${ziskSrc}/lib-c/c/src $out/.zisk/zisk/lib-c/c/
       # `cargo-zisk prove` runs `make` in this dir per ELF, which writes to
       # `build/`. Nix-store source preserves r-x perms across `cp -R`; without
       # this chmod the downstream `mkdir build` fails with Permission denied.
-      chmod -R u+w $out/.zisk/zisk/emulator-asm
-
-      # Build libziskc.a in a temporary writable directory
-      mkdir -p /build/lib-c-build
-      cp -R ${ziskSrc}/lib-c/c/* /build/lib-c-build/
-      (cd /build/lib-c-build && make)
-
-      # Copy lib-c and make it writable, then add the built library
-      cp -R ${ziskSrc}/lib-c $out/.zisk/zisk/
-      chmod -R u+w $out/.zisk/zisk/lib-c
-      mkdir -p $out/.zisk/zisk/lib-c/c/lib
-      cp /build/lib-c-build/lib/libziskc.a $out/.zisk/zisk/lib-c/c/lib/
+      chmod -R u+w $out/.zisk/zisk
 
       ls $out/.zisk/zisk -alh
     '';

@@ -11,8 +11,8 @@ in
     pname = "zisk-toolchain-bin";
     inherit version;
     src = fetchurl {
-      url = "https://github.com/0xPolygonHermez/rust/releases/download/zisk-0.5.1/rust-toolchain-x86_64-unknown-linux-gnu.tar.gz";
-      sha256 = "sha256-sutehlaOwp5oqBNoPttUYWR41HOz4XnH/ogNv3ZMEcU=";
+      url = "https://github.com/0xPolygonHermez/rust/releases/download/zisk-1.0.0/rust-toolchain-x86_64-unknown-linux-gnu.tar.gz";
+      sha256 = "sha256-KHx+WrqJwV9zbgBWFzDr2PLRfl4wtIHCRLpAPykekfE=";
     };
     nativeBuildInputs = [
       autoPatchelfHook

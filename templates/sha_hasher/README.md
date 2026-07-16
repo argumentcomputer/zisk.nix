@@ -1,6 +1,6 @@
 # sha_hasher
 
-A ZisK 0.17 example: iteratively computes SHA-256 inside the zkVM and generates
+A ZisK 1.0.0-alpha example: iteratively computes SHA-256 inside the zkVM and generates
 a proof of correct execution. Includes an aggregation guest that verifies N
 leaf proofs in-circuit to produce a single top-level proof.
 

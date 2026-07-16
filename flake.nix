@@ -54,19 +54,13 @@
 
         ziskSrc = pkgs.fetchgit {
           url = "https://github.com/0xPolygonHermez/zisk";
-          rev = "v0.17.0";
-          sha256 = "sha256-ZVlMF3EUzk1kajzXwnW7+Tj1Ms9p6bFGGZPKx7v1nZo=";
-          fetchSubmodules = true;
-        };
-        ziskSrcLite = pkgs.fetchgit {
-          url = "https://github.com/0xPolygonHermez/zisk";
-          rev = "v0.17.0";
-          sha256 = "sha256-ZVlMF3EUzk1kajzXwnW7+Tj1Ms9p6bFGGZPKx7v1nZo=";
+          rev = "v1.0.0-alpha";
+          sha256 = "sha256-yuv2iajDUAYsD7IR+MS4UEfWTiIH68rTThEYvVBPDbk=";
         };
         proofmanSrc = pkgs.fetchgit {
           url = "https://github.com/0xPolygonHermez/pil2-proofman";
-          rev = "v0.17.0";
-          sha256 = "sha256-JmFlGh+q82v/p8Eg0YO6GvwQyyS/dQW0udPGizo2H+g=";
+          rev = "v1.0.0-alpha";
+          sha256 = "sha256-QHI3AsCZzYrgpt6vUAt8uH/dYRjw+/+H+gOJjmg2E+I=";
           fetchSubmodules = true;
         };
 
@@ -85,21 +79,20 @@
           text = ''
             ZISK_DIR="''${ZISK_DIR:-$HOME/.zisk}"
             mkdir -p "$ZISK_DIR"
-            ZISK_SETUP_FILE="zisk-provingkey-0.17.0.tar.gz"
+            ZISK_SETUP_FILE="zisk-provingkey-1.0.0-alpha.tar.gz"
             echo "Downloading proving key to $ZISK_DIR (this may take a while)..."
             rm -rf "$ZISK_DIR/provingKey"
-            curl -fL -o "/tmp/$ZISK_SETUP_FILE" \
+            curl -fL --retry 3 -o "/tmp/$ZISK_SETUP_FILE" \
               "https://storage.googleapis.com/zisk-setup/$ZISK_SETUP_FILE"
             tar xf "/tmp/$ZISK_SETUP_FILE" -C "$ZISK_DIR"
             rm -f "/tmp/$ZISK_SETUP_FILE"
             echo "Generating constant tree..."
-            cargo-zisk check-setup -a
+            cargo-zisk-dev check-setup --proving-key "$ZISK_DIR/provingKey" -a
             echo "Proving key setup complete."
           '';
         };
         zisk-home = pkgs.callPackage ./pkgs/zisk-home.nix {
-          inherit cargo-zisk zisk-toolchain ziskemu craneLib proofmanSrc;
-          ziskSrc = ziskSrcLite;
+          inherit cargo-zisk zisk-toolchain ziskemu craneLib proofmanSrc ziskSrc;
         };
         rustup-shim = pkgs.callPackage ./pkgs/rustup-shim.nix {
           inherit zisk-toolchain rustToolchain;
@@ -147,6 +140,8 @@
                 secp256k1
                 nlohmann_json
                 nasm
+                m4
+                file
                 libgit2
                 mpi
                 clang
@@ -177,8 +172,10 @@
             shellHook = ''
               echo "Standard Rust: $(cargo --version)"
 
-              # Set up ZISK_DIR in $HOME
+              # Set up ZISK_DIR in $HOME (ZISK_HOME is what the zisk binaries
+              # read; it defaults to $HOME/.zisk but pin it explicitly)
               export ZISK_DIR="$HOME/.zisk"
+              export ZISK_HOME="$ZISK_DIR"
               mkdir -p "$ZISK_DIR"
 
               # Always sync binaries from Nix store to ensure updates are applied

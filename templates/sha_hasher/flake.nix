@@ -15,7 +15,7 @@
     flake-parts.follows = "zisk/flake-parts";
 
     zisk = {
-      url = "github:argumentcomputer/zisk.nix";
+      url = "github:argumentcomputer/zisk.nix/zisk-1.0";
     };
   };
 
