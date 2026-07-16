@@ -43,12 +43,16 @@ jobs:
     runs-on: warp-ubuntu-latest-x64-8x
     steps:
       - uses: actions/checkout@v6
-      - run: podman build -f docker/Dockerfile -t cargo-zisk:ci .
+      # Rootless podman cannot create user namespaces on the runner (Ubuntu
+      # 24.04 restricts unprivileged userns); use the rootful Docker daemon.
+      # The image is what's under test, not the engine — locally the
+      # zisk-shell/build-image wrappers still drive podman.
+      - run: docker build -f docker/Dockerfile -t cargo-zisk:ci .
       # Exercise the flow zisk-shell drives: install the pinned release
       # binaries (--nokey: the proving key is a multi-GB download) and
       # smoke-test the installed toolchain.
       - run: |
-          podman run --rm cargo-zisk:ci bash -c '
+          docker run --rm cargo-zisk:ci bash -c '
             set -ex
             ziskup --cpu --nokey -y
             cargo-zisk --version
