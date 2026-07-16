@@ -2,7 +2,7 @@ name: Nix CI
 
 on:
   push:
-    branches: main
+    branches: [main, zisk-1.0]
   pull_request:
   workflow_dispatch:
 
@@ -37,3 +37,20 @@ jobs:
       # Realize the dev shell so it's verified and pushed to the cache,
       # and smoke-test the toolchain entrypoint.
       - run: nix develop --print-build-logs --accept-flake-config --command cargo-zisk --version
+
+  docker-image:
+    name: Docker Image
+    runs-on: warp-ubuntu-latest-x64-8x
+    steps:
+      - uses: actions/checkout@v6
+      - run: podman build -f docker/Dockerfile -t cargo-zisk:ci .
+      # Exercise the flow zisk-shell drives: install the pinned release
+      # binaries (--nokey: the proving key is a multi-GB download) and
+      # smoke-test the installed toolchain.
+      - run: |
+          podman run --rm cargo-zisk:ci bash -c '
+            set -ex
+            ziskup --cpu --nokey -y
+            cargo-zisk --version
+            cargo-zisk-dev --version
+          '
