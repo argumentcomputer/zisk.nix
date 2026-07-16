@@ -62,15 +62,16 @@ jobs:
             cargo-zisk-dev --version
           '
       # Publish the tested image, tagged by branch — zisk-shell pulls this by
-      # default instead of requiring a local zisk-build. Push events only:
-      # PR tokens lack packages:write and must not overwrite branch tags.
-      - if: github.event_name == 'push'
+      # default instead of requiring a local zisk-build. Only main and
+      # blake3-precompile publish; this branch's pushes just build and test.
+      # (PR tokens lack packages:write and must not overwrite tags anyway.)
+      - if: github.event_name == 'push' && github.ref_name == 'main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - if: github.event_name == 'push'
+      - if: github.event_name == 'push' && github.ref_name == 'main'
         run: |
           docker tag cargo-zisk:ci "ghcr.io/argumentcomputer/cargo-zisk:${{ github.ref_name }}"
           docker push "ghcr.io/argumentcomputer/cargo-zisk:${{ github.ref_name }}"
